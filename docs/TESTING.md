@@ -16,6 +16,8 @@ The reconciliation fixture opens Cash at LKR 10,000 and Bank at LKR 40,000; adds
 
 ## Outstanding release validation
 
+- The final attempt to launch the rebuilt debug executable in the normal profile was blocked by **Windows Application Control** (OS error 4551, “An Application Control policy has blocked this file”). Earlier native GUI checks, including restart persistence, succeeded. The final build was not left running. No Windows security policy was changed. This machine's application-control policy must permit the developer build before further native smoke testing; packaging/signing requirements remain open.
+
 - Full MVP functionality, correction workflows and restore safety are not implemented yet.
 - Offline behavior without development servers, clean Windows 11 installation, installer upgrades and retention must be verified on a packaged build.
 - Benchmark 10,000 records; the first slice reads the ledger into Rust for exact aggregation. Optimize and add paginated history before claiming scale targets.

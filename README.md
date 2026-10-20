@@ -30,6 +30,8 @@ npm run tauri dev
 
 The desktop window opens with an empty account list. Add your first account and opening balance, then add a transaction. `npm run dev` opens only the frontend; a regular browser cannot access the Rust database and displays an explanation.
 
+Current machine note: Windows Application Control blocked the final rebuilt debug executable with OS error 4551 after earlier successful desktop checks. The app is not currently running. See [validation notes](docs/TESTING.md) for the observed limitation.
+
 ## Checks
 
 ```powershell
