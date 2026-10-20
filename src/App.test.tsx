@@ -10,10 +10,27 @@ vi.mock("./lib/api", () => ({
     snapshot: vi.fn(),
     createAccount: vi.fn(),
     createTransaction: vi.fn(),
+    updateTransaction: vi.fn(),
+    deleteTransaction: vi.fn(),
+    undoDelete: vi.fn(),
+    dataInfo: vi.fn(),
+    inspectBackup: vi.fn(),
+    restore: vi.fn(),
+    history: vi.fn(),
+    savePreferences: vi.fn(),
   },
   errorMessage: (error: { message: string }) => error.message,
 }));
 const empty: Snapshot = {
+  budgets: [],
+  spending: [],
+  preferences: {
+    theme: "system",
+    dateFormat: "iso",
+    profileName: "",
+    startPage: "Dashboard",
+    compactEntry: false,
+  },
   accounts: [],
   categories: [{ id: "food", name: "Food", kind: "expense" }],
   transactions: [],
@@ -27,6 +44,10 @@ const empty: Snapshot = {
 beforeEach(() => {
   vi.resetAllMocks();
   vi.mocked(api.snapshot).mockResolvedValue(empty);
+  vi.mocked(api.dataInfo).mockResolvedValue({
+    path: "C:\\fictional\\fintrack.sqlite",
+    lastBackup: null,
+  });
 });
 
 test("first account sends decimal text and refreshes persisted workspace", async () => {
@@ -105,4 +126,88 @@ test("a pending save cannot be submitted twice", async () => {
   expect(screen.getByRole("button", { name: "Saving…" })).toBeDisabled();
   resolveSave();
   await screen.findByText("Account created and saved on this computer.");
+});
+
+const populated: Snapshot = {
+  ...empty,
+  accounts: [
+    {
+      id: "cash",
+      name: "Cash",
+      accountType: "cash",
+      openingBalanceDate: "2026-10-01",
+      openingBalanceMinor: "10000",
+      balanceMinor: "9500",
+      isArchived: false,
+    },
+  ],
+  transactions: [
+    {
+      id: "entry",
+      kind: "expense",
+      accountId: "cash",
+      transferAccountId: null,
+      categoryId: "food",
+      amountMinor: "500",
+      transactionDate: "2026-10-20",
+      payee: "Fictional meal",
+      note: "",
+    },
+  ],
+  transactionCount: 1,
+};
+
+test("editing a transaction preserves its ID and sends exact decimal text", async () => {
+  vi.mocked(api.snapshot).mockResolvedValue(populated);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(await screen.findByRole("button", { name: "Edit" }));
+  await user.clear(screen.getByLabelText("Amount (LKR)"));
+  await user.type(screen.getByLabelText("Amount (LKR)"), "7.25");
+  await user.click(screen.getByRole("button", { name: "Save changes" }));
+  await waitFor(() =>
+    expect(api.updateTransaction).toHaveBeenCalledWith(
+      "entry",
+      expect.objectContaining({ amountText: "7.25", accountId: "cash" }),
+    ),
+  );
+});
+test("deletion requires confirmation and exposes a working undo action", async () => {
+  vi.mocked(api.snapshot).mockResolvedValue(populated);
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(await screen.findByRole("button", { name: "Delete" }));
+  expect(api.deleteTransaction).not.toHaveBeenCalled();
+  await user.click(screen.getByRole("button", { name: "Confirm" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Undo deletion" }),
+  );
+  await waitFor(() => expect(api.undoDelete).toHaveBeenCalledWith("entry"));
+});
+test("restore shows verified file contents before replacing records", async () => {
+  vi.mocked(api.snapshot).mockResolvedValue(empty);
+  vi.mocked(api.inspectBackup).mockResolvedValue({
+    token: "verified-token",
+    source: "Fictional backup.sqlite",
+    accounts: 2,
+    transactions: 15,
+    totalMinor: "12345",
+  });
+  vi.mocked(api.restore).mockResolvedValue("Fictional safety.sqlite");
+  const user = userEvent.setup();
+  render(<App />);
+  await screen.findByRole("button", { name: "Create your first account" });
+  await user.click(screen.getByRole("button", { name: "Settings" }));
+  await user.click(
+    await screen.findByRole("button", { name: "Inspect & restore backup" }),
+  );
+  await screen.findByText("2 accounts · 15 active transactions");
+  expect(api.restore).not.toHaveBeenCalled();
+  await user.click(
+    screen.getByRole("button", { name: "Replace data and restore" }),
+  );
+  await waitFor(() =>
+    expect(api.restore).toHaveBeenCalledWith("verified-token"),
+  );
+  await screen.findByText(/Restore completed/);
 });

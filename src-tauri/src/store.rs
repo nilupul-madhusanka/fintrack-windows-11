@@ -8,11 +8,18 @@ use sqlx::{
     Row, SqliteConnection, SqlitePool,
     sqlite::{SqliteConnectOptions, SqliteJournalMode, SqlitePoolOptions},
 };
-use std::{collections::BTreeMap, path::Path, time::Duration};
+use std::{
+    collections::BTreeMap,
+    path::{Path, PathBuf},
+    sync::Mutex,
+    time::Duration,
+};
 use uuid::Uuid;
 
 pub struct Store {
     pub pool: SqlitePool,
+    pub(crate) path: PathBuf,
+    pub(crate) restore_candidate: Mutex<Option<crate::recovery::Candidate>>,
 }
 
 impl Store {
@@ -31,13 +38,34 @@ impl Store {
             .run(&pool)
             .await
             .map_err(|_| AppError::storage())?;
-        let store = Self { pool };
+        let store = Self {
+            pool,
+            path: path.to_path_buf(),
+            restore_candidate: Mutex::new(None),
+        };
         store.seed().await?;
         Ok(store)
     }
 
     async fn seed(&self) -> Result<()> {
         let mut tx = self.pool.begin().await?;
+        let existing: i64 =
+            sqlx::query_scalar("SELECT COUNT(*) FROM settings WHERE key='seedVersion'")
+                .fetch_one(&mut *tx)
+                .await?;
+        if existing > 0 {
+            return Ok(());
+        }
+        let populated: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM categories")
+            .fetch_one(&mut *tx)
+            .await?;
+        if populated > 0 {
+            sqlx::query("INSERT INTO settings VALUES ('seedVersion','1')")
+                .execute(&mut *tx)
+                .await?;
+            tx.commit().await?;
+            return Ok(());
+        }
         let now = Utc::now().to_rfc3339();
         for (kind, names) in [
             (
@@ -63,6 +91,9 @@ impl Store {
                     .bind(Uuid::new_v4().to_string()).bind(name).bind(kind).bind(&now).bind(&now).execute(&mut *tx).await?;
             }
         }
+        sqlx::query("INSERT INTO settings VALUES ('seedVersion','1')")
+            .execute(&mut *tx)
+            .await?;
         tx.commit().await?;
         Ok(())
     }
@@ -87,6 +118,14 @@ impl Store {
     }
 
     pub async fn create_transaction(&self, input: TransactionInput) -> Result<()> {
+        self.save_transaction(None, input).await
+    }
+
+    pub async fn save_transaction(
+        &self,
+        id: Option<String>,
+        input: TransactionInput,
+    ) -> Result<()> {
         if !["income", "expense", "transfer"].contains(&input.kind.as_str()) {
             return Err(AppError::validation("Choose income, expense, or transfer."));
         }
@@ -96,6 +135,20 @@ impl Store {
         let payee = domain::text(&input.payee, 120, false)?;
         let note = domain::text(&input.note, 1000, false)?;
         let mut tx = self.pool.begin().await?;
+        if let Some(ref id) = id {
+            domain::uuid(id)?;
+            let exists: i64 = sqlx::query_scalar(
+                "SELECT COUNT(*) FROM transactions WHERE id=? AND deleted_at IS NULL",
+            )
+            .bind(id)
+            .fetch_one(&mut *tx)
+            .await?;
+            if exists != 1 {
+                return Err(AppError::validation(
+                    "This transaction no longer exists. Refresh your history.",
+                ));
+            }
+        }
         Self::validate_account(&mut tx, &input.account_id, &input.transaction_date).await?;
         if input.kind == "transfer" {
             if input.category_id.is_some() {
@@ -135,8 +188,13 @@ impl Store {
             }
         }
         let now = Utc::now().to_rfc3339();
-        sqlx::query("INSERT INTO transactions (id,kind,account_id,transfer_account_id,category_id,amount_minor,transaction_date,payee,note,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
-            .bind(Uuid::new_v4().to_string()).bind(input.kind).bind(input.account_id).bind(input.transfer_account_id).bind(input.category_id).bind(amount).bind(&input.transaction_date).bind(payee).bind(note).bind(&now).bind(&now).execute(&mut *tx).await?;
+        if let Some(id) = id {
+            sqlx::query("UPDATE transactions SET kind=?,account_id=?,transfer_account_id=?,category_id=?,amount_minor=?,transaction_date=?,payee=?,note=?,updated_at=? WHERE id=?")
+                .bind(input.kind).bind(input.account_id).bind(input.transfer_account_id).bind(input.category_id).bind(amount).bind(&input.transaction_date).bind(payee).bind(note).bind(&now).bind(id).execute(&mut *tx).await?;
+        } else {
+            sqlx::query("INSERT INTO transactions (id,kind,account_id,transfer_account_id,category_id,amount_minor,transaction_date,payee,note,created_at,updated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?)")
+                .bind(Uuid::new_v4().to_string()).bind(input.kind).bind(input.account_id).bind(input.transfer_account_id).bind(input.category_id).bind(amount).bind(&input.transaction_date).bind(payee).bind(note).bind(&now).bind(&now).execute(&mut *tx).await?;
+        }
         Self::read_snapshot(&mut tx, &input.transaction_date[..7]).await?;
         tx.commit().await?;
         Ok(())
@@ -168,20 +226,24 @@ impl Store {
         Ok(result)
     }
 
-    async fn read_snapshot(conn: &mut SqliteConnection, period: &str) -> Result<Snapshot> {
+    pub(crate) async fn read_snapshot(
+        conn: &mut SqliteConnection,
+        period: &str,
+    ) -> Result<Snapshot> {
         let (start, end) = domain::period_bounds(period)?;
         let account_rows = sqlx::query("SELECT * FROM accounts ORDER BY created_at,id")
             .fetch_all(&mut *conn)
             .await?;
         let rows = sqlx::query(
-            "SELECT * FROM transactions ORDER BY transaction_date DESC,created_at DESC,id DESC",
+            "SELECT * FROM transactions WHERE deleted_at IS NULL ORDER BY transaction_date DESC,created_at DESC,id DESC",
         )
         .fetch_all(&mut *conn)
         .await?;
-        let categories =
-            sqlx::query_as::<_, Category>("SELECT id,name,kind FROM categories ORDER BY kind,name")
-                .fetch_all(&mut *conn)
-                .await?;
+        let categories = sqlx::query_as::<_, Category>(
+            "SELECT id,name,kind,color,is_archived FROM categories ORDER BY kind,name",
+        )
+        .fetch_all(&mut *conn)
+        .await?;
         // i128 accumulation avoids order-dependent intermediate overflow. Validate final
         // i64 balances AND every monthly summary before exposing or committing data.
         let mut balances: BTreeMap<String, i128> = account_rows
@@ -196,6 +258,7 @@ impl Store {
         let mut flows: BTreeMap<String, (i128, i128)> = BTreeMap::new();
         let mut transactions = Vec::new();
         let mut count = 0;
+        let mut spending_totals: BTreeMap<String, i128> = BTreeMap::new();
         for row in rows {
             let kind: String = row.get("kind");
             let id: String = row.get("account_id");
@@ -217,6 +280,9 @@ impl Store {
                 flow.1 += amount;
             }
             if date >= start && date < end {
+                if kind == "expense" {
+                    *spending_totals.entry(row.get("category_id")).or_default() += amount;
+                }
                 count += 1;
                 if transactions.len() < 100 {
                     transactions.push(Transaction {
@@ -254,6 +320,32 @@ impl Store {
             });
         }
         let (income, expense) = flows.get(period).copied().unwrap_or_default();
+        let budget_rows = sqlx::query("SELECT * FROM budgets WHERE period=? ORDER BY category_id")
+            .bind(period)
+            .fetch_all(&mut *conn)
+            .await?;
+        let mut budgets = Vec::new();
+        for row in budget_rows {
+            let category_id: String = row.get("category_id");
+            let limit = row.get::<i64, _>("limit_minor");
+            let spent = domain::checked_minor(*spending_totals.get(&category_id).unwrap_or(&0))?;
+            budgets.push(Budget {
+                id: row.get("id"),
+                category_id,
+                period: period.into(),
+                limit_minor: limit.to_string(),
+                spent_minor: spent.to_string(),
+                remaining_minor: domain::checked_minor(limit as i128 - spent as i128)?.to_string(),
+            });
+        }
+        let spending = spending_totals
+            .into_iter()
+            .map(|(category_id, amount)| Spending {
+                category_id,
+                amount_minor: amount.to_string(),
+            })
+            .collect();
+        let preferences = Self::read_preferences(conn).await?;
         Ok(Snapshot {
             accounts,
             categories,
@@ -264,6 +356,9 @@ impl Store {
             expense_minor: expense.to_string(),
             net_cash_flow_minor: (income - expense).to_string(),
             transaction_count: count,
+            budgets,
+            spending,
+            preferences,
         })
     }
 }
