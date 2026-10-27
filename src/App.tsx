@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { version } from "../package.json";
 import {
   ArrowDownLeft,
   ArrowLeftRight,
@@ -256,7 +257,7 @@ export default function App() {
           ))}
         </nav>
         <div className="coming-next">
-          <span className="version-tag">v0.9.0 · MVP candidate</span>
+          <span className="version-tag">v{version} · MVP candidate</span>
         </div>
         <div className="local-card">
           <ShieldCheck size={22} />

@@ -1,5 +1,7 @@
 # Windows MVP release gates
 
+Portable 0.9.1 adds a locally checked ZIP and beside-executable data storage. Its automated and relocation checks are recorded in TESTING.md. It remains an unsigned prerelease; the earlier installer observations below refer to 0.9.0.
+
 ## Completed in source / automated checks
 
 - [x] All planned MVP feature screens and backend commands implemented.
@@ -25,4 +27,4 @@
 - [ ] Clean Windows 11 install/uninstall, upgrade and data-retention checks.
 - [ ] Full keyboard/contrast audit on target display settings.
 
-0.9.0 is an MVP candidate. Promote to 1.0 only after these acceptance gates are satisfied. Code signing and third-party license review are required before broad distribution; they are not silently assumed complete.
+0.9.x remains an MVP candidate. Promote to 1.0 only after these acceptance gates are satisfied. Code signing and third-party license review are required before broad distribution; they are not silently assumed complete.

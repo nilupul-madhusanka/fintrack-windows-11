@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.9.1 — 27 October 2026 — portable prerelease
+
+- Portable Windows x64 ZIP; no FinTrack installation required.
+- Database, workspace lock and WebView2 profile kept in a data folder beside the executable.
+- Repeatable portable packaging, SHA256 checksum, and version-tagged GitHub prerelease workflow.
+- Portable usage, backup, update and WebView2 prerequisite documentation.
+- Existing installed edition retains its usual data location. Broader acceptance gates remain open.
+
 ## 0.9.0 — 20 October 2026 — MVP candidate
 
 - Account and typed-category editing, archiving and reactivation.

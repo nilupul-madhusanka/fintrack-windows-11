@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { version } from "../../package.json";
 import { api, errorMessage } from "../lib/api";
 import type { Category, DataInfo, Preferences, Snapshot } from "../lib/types";
 export function SettingsPanel({
@@ -126,7 +127,7 @@ export function SettingsPanel({
         </div>
         <div className="setting-row">
           <span>Version</span>
-          <strong>0.9.0 · MVP candidate</strong>
+          <strong>{version} · MVP candidate</strong>
         </div>
       </section>
       <section className="panel settings-card">

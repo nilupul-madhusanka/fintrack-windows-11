@@ -4,12 +4,14 @@ Rust + Tauri 2 desktop software with an English interface, exact LKR accounting 
 
 ## Current release
 
-**0.9.0 — MVP candidate.** The planned MVP features are implemented, all 27 automated tests pass, and this version has been installed and launched on the development Windows computer. The x64 NSIS installer bundles the offline WebView2 runtime. Broader acceptance checks are listed in [validation status](docs/TESTING.md). This candidate has not been code signed.
+**0.9.1 — portable MVP prerelease.** Download the Windows x64 portable ZIP from [GitHub Releases](https://github.com/nilupul-madhusanka/fintrack-windows-11/releases), extract it to a writable folder and open `FinTrack.exe`. It keeps the database and WebView2 profile in `data/` beside the executable. Microsoft Edge WebView2 Runtime must already be installed. See the [portable guide](docs/PORTABLE.md) for backups, updates and moving between editions.
+
+The planned MVP features are implemented. The earlier 0.9.0 installer was installed and launched locally and bundles the offline WebView2 runtime. Broader acceptance checks remain listed in [validation status](docs/TESTING.md). These candidates have not been code signed.
 
 Installer output after building:
 
 ```text
-src-tauri/target/release/bundle/nsis/FinTrack_0.9.0_x64-setup.exe
+src-tauri/target/release/bundle/nsis/FinTrack_0.9.1_x64-setup.exe
 ```
 
 Close any earlier FinTrack window before installing or upgrading. Run the setup executable and open FinTrack from its Windows shortcut. The installer can provision WebView2 without downloading it at installation time.
@@ -56,6 +58,14 @@ cargo clippy --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
 npm run tauri build
 ```
 
-Dependencies are locked. Financial fixtures are fictional and disposable. Generated databases, exports, build output and backups are ignored by Git. Windows CI runs the build and test suite without publishing a release.
+Build the portable ZIP and its SHA256 checksum with:
+
+```powershell
+npm run build:portable
+```
+
+Output is in `release/`. Packaging stages only the executable, portable guide and changelog; user data is never included. The portable Tauri configuration overrides all app directories to `./data` relative to the executable, including WebView2 storage. Regular installer builds retain their usual data location.
+
+Dependencies are locked. Financial fixtures are fictional and disposable. Generated databases, exports, build output and backups are ignored by Git. Windows CI runs the build and test suite. The portable release workflow also checks the code and publishes an unsigned **prerelease** when a matching version tag is pushed; manual runs produce downloadable workflow artifacts.
 
 The original [project plan](FinTrack_Personal_Finance_Manager_Project_Plan.md), [development decisions](docs/DEVELOPMENT.md), [test results](docs/TESTING.md), and [release checklist](docs/RELEASE_CHECKLIST.md) document scope and remaining acceptance work.

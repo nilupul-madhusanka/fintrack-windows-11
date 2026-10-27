@@ -1,0 +1,19 @@
+Generated with the built-in image generation tool.
+
+Use case: ads-marketing.
+Asset type: a polished LinkedIn launch graphic, square 1536 x 1536.
+Create a premium, restrained product announcement for the existing desktop project FinTrack, an offline personal finance manager for Windows 11, with a portable edition. Target audience software developers and people managing personal budgets in Sri Lankan rupees.
+Visual identity is drawn from the real project: forest green #286b52, warm ivory #f7f9f8, soft mint highlights, charcoal-green typography, clean Segoe UI / Inter style. Existing brand mark is a green rounded square with four white ascending bars and a thin rising line. Use that simple mark next to the name FinTrack.
+Composition: clean editorial technology launch poster with generous whitespace and a very large readable headline at top; beneath it a large elegant front-facing desktop app window with a slight dimensional shadow, occupying the central 60%, and a short row of three feature labels near the bottom. No stock photo people, coins, dollar symbols, investment imagery, locks implying encryption, or neon gradients.
+The app window is a carefully typeset ILLUSTRATIVE preview of the project's implemented UI, not a photograph: white sidebar with FinTrack branding and menu Dashboard, Transactions, Accounts, Budgets, Reports, Settings. Dashboard has green accents, a dark forest-green Total tracked balance card showing LKR 85,000.00 and smaller cards Monthly income LKR 60,000.00, Monthly expenses LKR 15,000.00, Net cash flow LKR 45,000.00. Below are Your accounts with Cash and Bank, and Spending by category with simple green horizontal bars for Food, Transport and Utilities. Do not add unsupported features such as bank sync, AI, investments, savings goals or multi-currency. Use fictional demo data only. Small text under the app preview: "Illustrative preview · Demo data".
+Exact main copy, set sharply and spelled correctly:
+"FinTrack"
+"Your money."
+"Your device."
+"Offline personal finance for Windows 11"
+"Accounts & transactions"
+"Budgets & reports"
+"CSV export & backups"
+"Portable preview · v0.9.1"
+Small footer: "React + TypeScript  /  Tauri + Rust  /  SQLite"
+Maintain a refined hierarchy, excellent contrast, ample safe margins, thoughtful spacing and readable lettering. Do not claim fully tested, secure/encrypted, app-store approved or stable release. No watermarks and no LinkedIn logo. Final deliverable one cohesive ready-to-post graphic.

@@ -1,4 +1,17 @@
-# MVP validation — 20 October 2026
+# MVP validation
+
+## Portable 0.9.1 validation — 27 October 2026
+
+- All 27 automated tests passed locally: 7 frontend, 2 Rust unit and 18 SQLite integration tests. Frontend tests passed again after replacing hardcoded version labels with the package version.
+- Production frontend build and TypeScript checks passed. Rust formatting and Clippy for all targets with warnings denied passed.
+- Windows x64 release compiled with the portable Tauri configuration. ZIP inspection confirmed exactly the executable, portable guide and changelog; no database, browser profile, debug symbols or user exports were included.
+- The extracted executable launched with no development server, loaded the bundled interface and created data/fintrack.sqlite plus data/EBWebView beside the executable. The fresh profile initially displayed zero balances and no accounts.
+- A fictional Cash account named Portable smoke test with opening balance LKR 1,234.56 was created through the native interface. After closing the app and copying its complete folder to a second location, reopening from a different working directory retained the same account and balance. These fixtures live only under ignored .local/ folders.
+- The image in docs/social is an illustrative generated preview using demo figures, not a native screenshot.
+
+The portable ZIP requires an existing WebView2 Runtime. This local launch and relocation check does not establish clean-machine, disconnected-network or complete native acceptance. The package is unsigned and remains a prerelease. The SHA256 sidecar is generated from the final ZIP; GitHub release assets are separate from source control.
+
+## Original 0.9.0 validation — 20 October 2026
 
 ## Passed
 
